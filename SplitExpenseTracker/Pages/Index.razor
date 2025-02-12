@@ -1,0 +1,35 @@
+﻿@page "/"
+@using SplitExpenseTracker.Data
+@using SplitExpenseTracker.Data.Models
+
+<PageTitle>Split Expense Tracker</PageTitle>
+
+<h1>Split Expense Tracker</h1>
+
+<h3>Welcome to Split Expense Tracker</h3>
+
+<p>The Split Expense Tracker is a web application built using .NET 7.0 and Blazor Server that helps groups track and manage shared expenses. It allows users to:</p>
+
+<ul>
+    <li><strong>Add Members:</strong> Manage members who are part of the group.</li>
+    <li><strong>Add Expenses:</strong> Record transactions and specify who paid and whether it was a debit or credit.</li>
+    <li><strong>Track Balances:</strong> See the net debt or credit each member has based on the shared expenses.</li>
+    <li><strong>View Reports:</strong> Analyze who owes whom and how much, with automatic calculations based on entered data.</li>
+</ul>
+
+<h4>How it works:</h4>
+<p>Each time an expense is added, the app calculates the share each member owes or is owed based on the total amount and the payment made by each individual. You can view a list of all members, add new members, and delete members. Similarly, all expenses are tracked with details on who paid and the nature of the expense (credit or debit).</p>
+
+<h4>Get Started</h4>
+<p>To get started, use the <strong>Members</strong> page to add members to your group, then record your expenses using the <strong>Expenses</strong> page. Finally, check out the <strong>Debts</strong> to see how much each person owes or is owed.</p>
+
+<h4>Technologies Used:</h4>
+<ul>
+    <li>ASP.NET Core Blazor Server</li>
+    <li>SQL Server for Data Storage</li>
+    <li>Entity Framework Core</li>
+    <li>Bootstrap for styling</li>
+</ul>
+
+<p>Enjoy managing your group's expenses!</p>
+

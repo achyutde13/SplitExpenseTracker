@@ -1,0 +1,172 @@
+﻿@page "/addmember"
+@using SplitExpenseTracker.Data
+@using SplitExpenseTracker.Data.Models
+@using SplitExpenseTracker.Data.Services
+@using System.ComponentModel.DataAnnotations
+@using Radzen
+@using Radzen.Blazor
+@inject AppDbContext _db
+@inject ICRUD _ICRUD
+
+<style>
+	.bold-header .rz-grid-table thead th .rz-column-title {
+		font-weight: bold !important;
+	}
+</style>
+
+<RadzenText TextStyle="TextStyle.H3" TextAlign="TextAlign.Center" class="rz-text-uppercase">Members</RadzenText>
+
+<RadzenTemplateForm Data="@newMember" TItem="Member" Submit="@OnSubmit">
+	<RadzenFieldset Text="@((isEditMode) ? "Edit Member" : "Add Member")">
+		<RadzenRow>
+			<RadzenColumn Size="4">
+				<RadzenFormField Text="Enter Name" Component="Name" Style="width: 100%;">
+					<RadzenTextBox @bind-Value="@newMember.Name" Name="Name" @oninput="ValidateField" />
+				</RadzenFormField>
+				<RadzenRequiredValidator Component="Name" Text="Name is Required!"/>
+				<RadzenRegexValidator Component="Name" Text="Name must contain only letters!" Pattern="^[a-zA-Z ]+$" />
+			</RadzenColumn>
+			<RadzenColumn Size="4">
+				<RadzenFormField Text="Enter Email" Component="Email" Style="width: 100%;">
+					<RadzenTextBox @bind-Value="@newMember.Email" Name="Email" @oninput="ValidateField" />
+				</RadzenFormField>
+				<RadzenRequiredValidator Component="Email" Text="Email is Required!" />
+				<RadzenEmailValidator Component="Email" Text="Provide a valid email address!" />
+			</RadzenColumn>
+			<RadzenColumn Size="4">
+				<RadzenFormField Text="Enter Mobile" Component="Mobile" Style="width: 100%;">
+					<RadzenTextBox @bind-Value="@newMember.Mobile" Name="Mobile" @oninput="ValidateField" />
+				</RadzenFormField>
+				<RadzenRequiredValidator Component="Mobile" Text="Mobile number is Required!" />
+				<RadzenRegexValidator Component="Mobile" Text="Mobile number must be 10 digits!" Pattern="^[0-9]{10}$" />
+
+			</RadzenColumn>
+		</RadzenRow>
+		<RadzenRow>
+			<RadzenColumn Size="12" class="text-center rz-mt-4 rz-mb-2">
+				<RadzenButton class="rz-border-radius-1" Text="@((isEditMode) ? "Update Member" : "Add Member")" Icon="save" ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Submit" />
+				<RadzenButton class="rz-border-radius-1" Text="@((isEditMode) ? "Cancel" : "Reset")" Icon="refresh" ButtonStyle="ButtonStyle.Secondary" Click="@OnReset" />
+			</RadzenColumn>
+		</RadzenRow>
+	</RadzenFieldset>
+</RadzenTemplateForm>
+
+
+<br />
+
+<RadzenText TextStyle="TextStyle.H5" TextAlign="TextAlign.Start" class="rz-text-uppercase">Member List</RadzenText>
+
+<RadzenDataGrid class="bold-header" Data="@newMemberData" TItem="Member" GridLines="Radzen.DataGridGridLines.Vertical" SelectionMode="DataGridSelectionMode.Single" AllowSorting="true" AllowPaging="true" PageSize="10">
+	<EmptyTemplate>
+		<p style="color: lightgrey; font-size: 14px; text-align: center; margin: 1rem;">No records to display.</p>
+	</EmptyTemplate>
+	<Columns>
+		<RadzenDataGridColumn Property="@nameof(Member.Member_Id)" Title="ID" TextAlign="TextAlign.Center" Width="70px" />
+		<RadzenDataGridColumn Property="@nameof(Member.Name)" Title="Name" TextAlign="TextAlign.Center" />
+		<RadzenDataGridColumn Property="@nameof(Member.Email)" Title="Email" TextAlign="TextAlign.Center" />
+		<RadzenDataGridColumn Property="@nameof(Member.Mobile)" Title="Mobile" TextAlign="TextAlign.Center" />
+		<RadzenDataGridColumn Title="Actions" TextAlign="TextAlign.Center">
+			<Template Context="row">
+				<RadzenButton class="rz-border-radius-1" Icon="edit" Text="Edit" ButtonStyle="ButtonStyle.Warning" Size="ButtonSize.Small" Click="@(args => EditUser(row.Member_Id))" />
+				<RadzenButton class="rz-border-radius-1" Icon="delete" Text="Delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="@(args => DeleteUser(row.Member_Id))" />
+			</Template>
+		</RadzenDataGridColumn>
+	</Columns>
+</RadzenDataGrid>
+
+@code {
+	private Member newMember = new();
+	private List<Member> newMemberData { get; set; } = new();
+	private bool isEditMode = false;
+
+	protected override void OnInitialized()
+	{
+		newMemberData = _ICRUD.GetAllMembers();
+	}
+	private void OnSubmit()
+	{
+		if (CheckValidation())
+		{
+			return;
+		}
+		if (isEditMode)
+		{
+			_db.Members.Update(newMember);
+			// toastService.ShowSuccess("Member Updated Successfully!");
+			_radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Success", Detail = "Member Updated Successfully!", Duration = 4000 });
+
+		}
+		else
+		{
+			_db.Members.Add(newMember);
+			// toastService.ShowSuccess("Member Added Successfully!");
+			_radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Success", Detail = "Member Added Successfully!", Duration = 4000 });
+		}
+		_db.SaveChanges();
+		OnReset();
+	}
+	private void EditUser(int Id)
+	{
+		newMember = _ICRUD.GetMemberById(Id);
+		isEditMode = true;
+	}
+	private void DeleteUser(int Id)
+	{
+		var dbData = _db.Members.FirstOrDefault(x => x.Member_Id == Id);
+		if (dbData is not null)
+		{
+			_db.Members.Remove(dbData);
+			_db.SaveChanges();
+			newMemberData = _ICRUD.GetAllMembers();
+			// toastService.ShowSuccess("Member Deleted Successfully!");
+			_radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Success", Detail = "Member Deleted Successfully!", Duration = 4000 });
+		}
+	}
+	private void OnReset()
+	{
+		newMember = new();
+		isEditMode = false;
+		newMemberData = _ICRUD.GetAllMembers();
+		StateHasChanged();
+	}
+	private bool CheckValidation()
+	{
+		var checkDuplicate = newMemberData.FirstOrDefault(x => newMember.Member_Id > 0 ? (x.Member_Id != newMember.Member_Id && (x.Email == newMember.Email || x.Mobile == newMember.Mobile)) : (x.Email == newMember.Email || x.Mobile == newMember.Mobile));
+		if (checkDuplicate != null)
+		{
+			if (checkDuplicate.Email == newMember.Email)
+			{
+				// toastService.ShowWarning("Email is duplicate!");
+				_radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Warning", Detail = "Email is duplicate!", Duration = 4000 });
+
+				return true;
+			}
+			else
+			{
+				// toastService.ShowWarning("Mobile is duplicate!");
+				_radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Warning", Detail = "Mobile is duplicate!", Duration = 4000 });
+				return true;
+			}
+		}
+		else
+		{
+			return false;
+		}
+	}
+	private void ValidateField(ChangeEventArgs e)
+	{
+		var validationContext = new ValidationContext(newMember);
+		var validationResults = new List<ValidationResult>();
+
+		Validator.TryValidateObject(newMember, validationContext, validationResults, true);
+
+		if (validationResults.Any())
+		{
+			foreach (var result in validationResults)
+			{
+				Console.WriteLine(result.ErrorMessage);
+			}
+		}
+		StateHasChanged();
+	}
+}

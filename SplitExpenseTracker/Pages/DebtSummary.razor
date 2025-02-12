@@ -1,0 +1,248 @@
+﻿@page "/debtsummary"
+@using Microsoft.EntityFrameworkCore
+@using SplitExpenseTracker.Data
+@using SplitExpenseTracker.Data.Models
+@using SplitExpenseTracker.Data.Services
+@inject AppDbContext _db
+
+<style>
+    .bold-header .rz-grid-table thead th .rz-column-title {
+        font-weight: bold !important;
+    }
+</style>
+
+<RadzenText TextStyle="TextStyle.H3" TextAlign="TextAlign.Center" class="rz-text-uppercase">Debts</RadzenText>
+
+<br />
+@if (members.Any() && expenses.Any())
+{
+    <RadzenText TextStyle="TextStyle.H5" TextAlign="TextAlign.Start" class="rz-text-uppercase">Total Summary</RadzenText>
+
+    <RadzenDataGrid class="bold-header" Data="@members" TItem="Member" GridLines="Radzen.DataGridGridLines.Vertical" ShowPagingSummary="true" PageSize="10" AllowPaging="true" AllowSorting="true">
+        <EmptyTemplate>
+            <p style="color: lightgrey; font-size: 14px; text-align: center; margin: 1rem;">No records to display.</p>
+        </EmptyTemplate>
+        <Columns>
+            <RadzenDataGridColumn Property="@nameof(Member.Name)" Title="Member" TextAlign="TextAlign.Center" />
+
+            <RadzenDataGridColumn TItem="Member" Title="Total Paid" TextAlign="TextAlign.Center">
+                <Template Context="member">
+                    @expenses.Where(e => e.PaidById == member.Member_Id).Sum(e => e.Amount).ToString("C")
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Member" Title="Equal Share" TextAlign="TextAlign.Center">
+                <Template Context="member">
+                    @FormatCurrency(totalExpense / members.Count)
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Member" Title="Net Debt" TextAlign="TextAlign.Center">
+                <Template Context="member">
+                    @FormatCurrency(expenses.Where(e => e.PaidById == member.Member_Id).Sum(e => e.Amount) - (totalExpense / members.Count))
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+    
+    <br />
+
+    <RadzenText TextStyle="TextStyle.H5" TextAlign="TextAlign.Start" class="rz-text-uppercase">Debt Breakdown</RadzenText>
+    <RadzenDataGrid class="bold-header" Data="@debtBreakdown" TItem="DebtDetail" GridLines="Radzen.DataGridGridLines.Vertical" ShowPagingSummary="true" PageSize="10" AllowPaging="true" AllowSorting="true">
+        <EmptyTemplate>
+            <p style="color: lightgrey; font-size: 14px; text-align: center; margin: 1rem;">No records to display.</p>
+        </EmptyTemplate>
+        <Columns>
+            <RadzenDataGridColumn Property="@nameof(DebtDetail.Ower)" Title="Owes" TextAlign="TextAlign.Center" />
+            <RadzenDataGridColumn Property="@nameof(DebtDetail.OwedTo)" Title="Owed To" TextAlign="TextAlign.Center" />
+            <RadzenDataGridColumn Title="Amount" TextAlign="TextAlign.Center">
+                <Template Context="debt">
+                    @FormatCurrency(debt.Amount)
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="DebtDetail" Title="Settle Amount" TextAlign="TextAlign.Center">
+                <Template Context="debt">
+                    <RadzenNumeric @bind-Value="debt.SettleAmount" Min="0" Max="@debt.Amount" Step="0.01" />
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="DebtDetail" Title="Actions" TextAlign="TextAlign.Center">
+                <Template Context="debt">
+                    <RadzenButton class="rz-border-radius-1" Text="Settle" Click="@(args => SettleDebt(debt.OwerId, debt.OwedToId, debt.SettleAmount))" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Success" />
+                    <RadzenButton class="rz-border-radius-1" Text="Settle Max" Click="@(args => SettleMaxAmount(debt))" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary" />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+
+
+    <br />
+    
+    <RadzenText TextStyle="TextStyle.H5" TextAlign="TextAlign.Start" class="rz-text-uppercase">Settlement History</RadzenText>
+    <RadzenDataGrid class="bold-header" Data="@settlementHistory" TItem="DebtSettlement" GridLines="Radzen.DataGridGridLines.Vertical" ShowPagingSummary="true" PageSize="10" AllowPaging="true" AllowSorting="true">
+        <EmptyTemplate>
+            <p style="color: lightgrey; font-size: 14px; text-align: center; margin: 1rem;">No records to display.</p>
+        </EmptyTemplate>
+        <Columns>
+            <RadzenDataGridColumn TItem="DebtSettlement" Title="Ower" TextAlign="TextAlign.Center">
+                <Template Context="settlement">
+                    @settlement.Ower.Name
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="DebtSettlement" Title="Owed To" TextAlign="TextAlign.Center">
+                <Template Context="settlement">
+                    @settlement.OwedTo.Name
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="DebtSettlement" Title="Amount" TextAlign="TextAlign.Center">
+                <Template Context="settlement">
+                    @FormatCurrency(settlement.Amount)
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="DebtSettlement" Title="Date" TextAlign="TextAlign.Center">
+                <Template Context="settlement">
+                    @settlement.SettlementDate.ToString("g")
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="DebtSettlement" Title="Actions" TextAlign="TextAlign.Center">
+                <Template Context="settlement">
+                    <RadzenButton class="rz-border-radius-1" Text="Delete" Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="@(args => DeleteSettlement(settlement.SettlementId))" />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+
+}
+else
+{
+    <RadzenText TextStyle="TextStyle.H4" TagName="TagName.P" class="text-danger">No members or expenses found.</RadzenText>
+}
+
+@code {
+    private List<Member> members = new();
+    private List<Expense> expenses = new();
+    private List<DebtSettlement> settlementHistory = new();
+    private List<DebtDetail> debtBreakdown = new();
+    private decimal totalExpense = 0;
+
+    protected override void OnInitialized()
+    {
+        LoadData();
+    }
+
+    private void LoadData()
+    {
+        members = _db.Members.ToList();
+        expenses = _db.Expenses.Include(e => e.PaidBy).ToList();
+        settlementHistory = _db.DebtSettlements.Include(ds => ds.Ower).Include(ds => ds.OwedTo).OrderByDescending(ds => ds.SettlementDate).ToList();
+        totalExpense = expenses.Sum(e => e.Amount);
+        debtBreakdown = CalculateDebtBreakdown();
+    }
+    private string FormatCurrency(decimal amount)
+    {
+        return amount.ToString("C");
+    }
+    private void DeleteSettlement(int settlementId)
+    {
+        var settlement = _db.DebtSettlements.FirstOrDefault(ds => ds.SettlementId == settlementId);
+        if (settlement != null)
+        {
+            _db.DebtSettlements.Remove(settlement);
+            _db.SaveChanges();
+            LoadData();
+            // toastService.ShowSuccess("Settlement Transaction Deleted!");
+            _radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Success", Detail = "Settlement Transaction Deleted!", Duration = 4000 });
+            StateHasChanged();
+        }
+    }
+    private List<DebtDetail> CalculateDebtBreakdown()
+    {
+        var breakdown = new List<DebtDetail>();
+        var equalShare = totalExpense / members.Count;
+
+        var netDebts = members.ToDictionary(
+            m => m.Member_Id,
+            m => expenses.Where(e => e.PaidById == m.Member_Id).Sum(e => e.Amount) - equalShare
+        );
+
+        foreach (var settlement in _db.DebtSettlements)
+        {
+            netDebts[settlement.OwerId] += settlement.Amount;
+            netDebts[settlement.OwedToId] -= settlement.Amount;
+        }
+
+        foreach (var ower in members)
+        {
+            foreach (var owedTo in members)
+            {
+                if (ower.Member_Id != owedTo.Member_Id && netDebts[ower.Member_Id] < 0 && netDebts[owedTo.Member_Id] > 0)
+                {
+                    var amount = Math.Min(Math.Abs(netDebts[ower.Member_Id]), netDebts[owedTo.Member_Id]);
+                    breakdown.Add(new DebtDetail
+                        {
+                            OwerId = ower.Member_Id,
+                            Ower = ower.Name,
+                            OwedToId = owedTo.Member_Id,
+                            OwedTo = owedTo.Name,
+                            Amount = amount
+                        });
+
+                    netDebts[ower.Member_Id] += amount;
+                    netDebts[owedTo.Member_Id] -= amount;
+                }
+            }
+        }
+
+        return breakdown;
+    }
+    private void SettleDebt(int owerId, int owedToId, decimal settleAmount)
+    {
+        if (settleAmount <= 0)
+        {
+            // toastService.ShowError("Settle amount must be greater than zero!");
+            _radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = "Settle amount must be greater than zero!", Duration = 4000 });
+            return;
+        }
+
+        var existingDebt = debtBreakdown.FirstOrDefault(d => d.OwerId == owerId && d.OwedToId == owedToId);
+        if (existingDebt == null || settleAmount > existingDebt.Amount)
+        {
+            // toastService.ShowError("Invalid settle amount.");
+            _radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = "Invalid settle amount.", Duration = 4000 });
+            return;
+        }
+
+        var settlement = new DebtSettlement
+            {
+                OwerId = owerId,
+                OwedToId = owedToId,
+                Amount = settleAmount,
+                SettlementDate = DateTime.Now
+            };
+
+        _db.DebtSettlements.Add(settlement);
+        _db.SaveChanges();
+
+        LoadData();
+        // toastService.ShowSuccess($"Debt settled successfully for {settleAmount:C}!");
+        _radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Success", Detail = $"Debt settled successfully for {settleAmount:C}!", Duration = 4000 });
+        StateHasChanged();
+    }
+    private void SettleMaxAmount(DebtDetail debt)
+    {
+        debt.SettleAmount = debt.Amount;
+        SettleDebt(debt.OwerId, debt.OwedToId, debt.SettleAmount);
+    }
+    private class DebtDetail
+    {
+        public int OwerId { get; set; }
+        public string Ower { get; set; } = string.Empty;
+        public int OwedToId { get; set; }
+        public string OwedTo { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+        public decimal SettleAmount { get; set; } = 0;
+    }
+}

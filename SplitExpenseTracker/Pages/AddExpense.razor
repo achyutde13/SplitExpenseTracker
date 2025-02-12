@@ -1,0 +1,145 @@
+﻿@page "/addexpense"
+@using SplitExpenseTracker.Data
+@using SplitExpenseTracker.Data.Models
+@using SplitExpenseTracker.Data.Services
+@using Microsoft.EntityFrameworkCore
+@using System.ComponentModel.DataAnnotations
+@using SplitExpenseTracker.Pages
+@inject AppDbContext _db
+@inject ICRUD _ICRUD
+
+<style>
+    .bold-header .rz-grid-table thead th .rz-column-title {
+		font-weight: bold !important;
+	}
+</style>
+
+<RadzenText TextStyle="TextStyle.H3" TextAlign="TextAlign.Center" class="rz-text-uppercase">Expenses</RadzenText>
+
+<RadzenTemplateForm Data="@newExpense" TItem="Expense" Submit="@OnSubmit">
+    <RadzenFieldset Text="Add Expense">
+        <RadzenRow>
+            <RadzenColumn Size="3">
+                <RadzenFormField Text="Enter Expense Name" Component="ExpenseName" Style="width: 100%;">
+                    <RadzenTextBox @bind-Value="@newExpense.ExpenseName" Name="ExpenseName" @oninput="ValidateField" />
+				</RadzenFormField>
+                <RadzenRequiredValidator Component="ExpenseName" Text="Expense name is required" Popup="true" />
+                <RadzenLengthValidator Component="ExpenseName" Max="100" Text="Expense name cannot exceed 100 characters!" />
+            </RadzenColumn>
+
+			<RadzenColumn Size="3">
+				<RadzenFormField Text="Enter Amount" Component="Amount" Style="width: 100%">
+					<RadzenNumeric @bind-Value="newExpense.Amount" Name="Amount" Placeholder="Enter Amount" Step="0.01" @oninput="ValidateField" />
+				</RadzenFormField>
+				<RadzenRequiredValidator Component="Amount" Text="Amount is required" Popup="true" />
+				<RadzenNumericRangeValidator Component="Amount" Min="0.01" Text="Amount must be greater than zero" />
+			</RadzenColumn>
+            
+            <RadzenColumn Size="3">
+                <RadzenFormField Text="Transaction Date" Component="TransactionDate" Style="width: 100%">
+                    <RadzenDatePicker @bind-Value="newExpense.TransactionDate" ShowTime="true" HourFormat="12" DateFormat="dd/MM/yyyy h:mm tt" Name="TransactionDate" @onchange="ValidateField" />
+                </RadzenFormField>
+            </RadzenColumn>
+            
+            <RadzenColumn Size="3">
+                <RadzenFormField Text="Paid By" Component="PaidById" Style="width: 100%">
+                    <RadzenDropDown @bind-Value="newExpense.PaidById" Name="PaidById" Data="@members" TextProperty="Name" ValueProperty="Member_Id" Placeholder="Select Member" @onchange="ValidateField" />
+                </RadzenFormField>
+                <RadzenRequiredValidator Component="PaidById" Text="Please select a member" />
+            </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="12" class="text-center rz-mt-4 rz-mb-2">
+                <RadzenButton class="rz-border-radius-1" Text="Add Expense" Icon="save" ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Submit" />
+                <RadzenButton class="rz-border-radius-1" Text="Reset" Icon="refresh" ButtonStyle="ButtonStyle.Secondary" Click="@OnReset" />
+            </RadzenColumn>
+        </RadzenRow>
+    </RadzenFieldset>
+</RadzenTemplateForm>
+
+<br />
+
+<RadzenText TextStyle="TextStyle.H5" TextAlign="TextAlign.Start" class="rz-text-uppercase">Transaction List</RadzenText>
+
+<RadzenDataGrid Data="@ExpenseData" TItem="Expense" GridLines="Radzen.DataGridGridLines.Vertical" ShowPagingSummary="true" PageSize="10" AllowPaging="true" AllowSorting="true" class="bold-header">
+    <EmptyTemplate>
+        <p style="color: lightgrey; font-size: 14px; text-align: center; margin: 1rem;">No records to display.</p>
+    </EmptyTemplate>
+    <Columns>
+        <RadzenDataGridColumn Property="@nameof(Expense.Expense_Id)" Title="ID" TextAlign="TextAlign.Center" Width="75px" />
+
+        <RadzenDataGridColumn Property="@nameof(Expense.ExpenseName)" Title="Expense Name" TextAlign="TextAlign.Center" />
+
+        <RadzenDataGridColumn Property="@nameof(Expense.Amount)" Title="Expense Amount" TextAlign="TextAlign.Center">
+            <Template Context="expense">
+                @expense.Amount.ToString("C")
+            </Template>
+        </RadzenDataGridColumn>
+
+        <RadzenDataGridColumn Property="@nameof(Expense.TransactionDate)" Title="Transaction Date" TextAlign="TextAlign.Center">
+            <Template Context="expense">
+                @expense.TransactionDate.ToString("dd/MM/yyyy")
+            </Template>
+        </RadzenDataGridColumn>
+
+        <RadzenDataGridColumn TItem="Expense" Title="Paid By" TextAlign="TextAlign.Center">
+            <Template Context="expense">
+                @expense.PaidBy?.Name
+            </Template>
+        </RadzenDataGridColumn>
+
+        <RadzenDataGridColumn Title="Actions" TextAlign="TextAlign.Center">
+            <Template Context="expense">
+                <RadzenButton Text="Delete" Icon="delete_forever" class="rz-border-radius-1" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="@(args => DeleteTransaction(expense.Expense_Id))" />
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+
+@code {
+    private Expense newExpense = new();
+    private List<Expense> ExpenseData = new();
+    private List<Member> members = new();
+
+    protected override void OnInitialized()
+    {
+        members = _ICRUD.GetAllMembers();
+        ExpenseData = _ICRUD.GetAllExpenses();
+    }
+    private void OnSubmit()
+    {
+        _db.Expenses.Add(newExpense);
+        _db.SaveChanges();
+        // toastService.ShowSuccess("Expense Added Successfully!");
+        _radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Success", Detail = "Expense Added Successfully!", Duration = 4000 });
+        OnReset();
+
+    }
+    private void DeleteTransaction(int Id)
+    {
+        var dbData = _db.Expenses.FirstOrDefault(x => x.Expense_Id == Id);
+        if (dbData is not null)
+        {
+            _db.Expenses.Remove(dbData);
+            _db.SaveChanges();
+            ExpenseData = _ICRUD.GetAllExpenses();
+            // toastService.ShowSuccess("Expense Deleted Successfully!");
+            _radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Success", Detail = "Expense Deleted Successfully!", Duration = 4000 });
+        }
+    }
+    private void OnReset()
+    {
+        newExpense = new();
+        ExpenseData = _ICRUD.GetAllExpenses();
+        StateHasChanged();
+    }
+    private void ValidateField(ChangeEventArgs e)
+    {
+        var validationContext = new ValidationContext(newExpense);
+        var validationResults = new List<ValidationResult>();
+
+        Validator.TryValidateObject(newExpense, validationContext, validationResults, true);
+        StateHasChanged();
+    }
+}
