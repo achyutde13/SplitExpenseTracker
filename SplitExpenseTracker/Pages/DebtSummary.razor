@@ -141,10 +141,12 @@ else
         totalExpense = expenses.Sum(e => e.Amount);
         debtBreakdown = CalculateDebtBreakdown();
     }
+
     private string FormatCurrency(decimal amount)
     {
         return amount.ToString("C");
     }
+
     private void DeleteSettlement(int settlementId)
     {
         var settlement = _db.DebtSettlements.FirstOrDefault(ds => ds.SettlementId == settlementId);
@@ -153,11 +155,11 @@ else
             _db.DebtSettlements.Remove(settlement);
             _db.SaveChanges();
             LoadData();
-            // toastService.ShowSuccess("Settlement Transaction Deleted!");
             _radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Success", Detail = "Settlement Transaction Deleted!", Duration = 4000 });
             StateHasChanged();
         }
     }
+
     private List<DebtDetail> CalculateDebtBreakdown()
     {
         var breakdown = new List<DebtDetail>();
@@ -198,11 +200,11 @@ else
 
         return breakdown;
     }
+
     private void SettleDebt(int owerId, int owedToId, decimal settleAmount)
     {
         if (settleAmount <= 0)
         {
-            // toastService.ShowError("Settle amount must be greater than zero!");
             _radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = "Settle amount must be greater than zero!", Duration = 4000 });
             return;
         }
@@ -210,7 +212,6 @@ else
         var existingDebt = debtBreakdown.FirstOrDefault(d => d.OwerId == owerId && d.OwedToId == owedToId);
         if (existingDebt == null || settleAmount > existingDebt.Amount)
         {
-            // toastService.ShowError("Invalid settle amount.");
             _radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Error", Detail = "Invalid settle amount.", Duration = 4000 });
             return;
         }
@@ -227,15 +228,16 @@ else
         _db.SaveChanges();
 
         LoadData();
-        // toastService.ShowSuccess($"Debt settled successfully for {settleAmount:C}!");
         _radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Success", Detail = $"Debt settled successfully for {settleAmount:C}!", Duration = 4000 });
         StateHasChanged();
     }
+
     private void SettleMaxAmount(DebtDetail debt)
     {
         debt.SettleAmount = debt.Amount;
         SettleDebt(debt.OwerId, debt.OwedToId, debt.SettleAmount);
     }
+
     private class DebtDetail
     {
         public int OwerId { get; set; }

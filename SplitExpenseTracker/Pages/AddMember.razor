@@ -21,25 +21,24 @@
 		<RadzenRow>
 			<RadzenColumn Size="4">
 				<RadzenFormField Text="Enter Name" Component="Name" Style="width: 100%;">
-					<RadzenTextBox @bind-Value="@newMember.Name" Name="Name" @oninput="ValidateField" />
+					<RadzenTextBox @bind-Value="@newMember.Name" Name="Name" />
 				</RadzenFormField>
 				<RadzenRequiredValidator Component="Name" Text="Name is Required!"/>
 				<RadzenRegexValidator Component="Name" Text="Name must contain only letters!" Pattern="^[a-zA-Z ]+$" />
 			</RadzenColumn>
 			<RadzenColumn Size="4">
 				<RadzenFormField Text="Enter Email" Component="Email" Style="width: 100%;">
-					<RadzenTextBox @bind-Value="@newMember.Email" Name="Email" @oninput="ValidateField" />
+					<RadzenTextBox @bind-Value="@newMember.Email" Name="Email" />
 				</RadzenFormField>
 				<RadzenRequiredValidator Component="Email" Text="Email is Required!" />
 				<RadzenEmailValidator Component="Email" Text="Provide a valid email address!" />
 			</RadzenColumn>
 			<RadzenColumn Size="4">
 				<RadzenFormField Text="Enter Mobile" Component="Mobile" Style="width: 100%;">
-					<RadzenTextBox @bind-Value="@newMember.Mobile" Name="Mobile" @oninput="ValidateField" />
+					<RadzenTextBox @bind-Value="@newMember.Mobile" Name="Mobile" />
 				</RadzenFormField>
 				<RadzenRequiredValidator Component="Mobile" Text="Mobile number is Required!" />
 				<RadzenRegexValidator Component="Mobile" Text="Mobile number must be 10 digits!" Pattern="^[0-9]{10}$" />
-
 			</RadzenColumn>
 		</RadzenRow>
 		<RadzenRow>
@@ -50,7 +49,6 @@
 		</RadzenRow>
 	</RadzenFieldset>
 </RadzenTemplateForm>
-
 
 <br />
 
@@ -83,6 +81,7 @@
 	{
 		newMemberData = _ICRUD.GetAllMembers();
 	}
+
 	private void OnSubmit()
 	{
 		if (CheckValidation())
@@ -92,24 +91,24 @@
 		if (isEditMode)
 		{
 			_db.Members.Update(newMember);
-			// toastService.ShowSuccess("Member Updated Successfully!");
 			_radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Success", Detail = "Member Updated Successfully!", Duration = 4000 });
 
 		}
 		else
 		{
 			_db.Members.Add(newMember);
-			// toastService.ShowSuccess("Member Added Successfully!");
 			_radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Success", Detail = "Member Added Successfully!", Duration = 4000 });
 		}
 		_db.SaveChanges();
 		OnReset();
 	}
+
 	private void EditUser(int Id)
 	{
 		newMember = _ICRUD.GetMemberById(Id);
 		isEditMode = true;
 	}
+
 	private void DeleteUser(int Id)
 	{
 		var dbData = _db.Members.FirstOrDefault(x => x.Member_Id == Id);
@@ -117,11 +116,11 @@
 		{
 			_db.Members.Remove(dbData);
 			_db.SaveChanges();
-			newMemberData = _ICRUD.GetAllMembers();
-			// toastService.ShowSuccess("Member Deleted Successfully!");
 			_radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Success", Detail = "Member Deleted Successfully!", Duration = 4000 });
+			OnReset();
 		}
 	}
+
 	private void OnReset()
 	{
 		newMember = new();
@@ -129,6 +128,7 @@
 		newMemberData = _ICRUD.GetAllMembers();
 		StateHasChanged();
 	}
+
 	private bool CheckValidation()
 	{
 		var checkDuplicate = newMemberData.FirstOrDefault(x => newMember.Member_Id > 0 ? (x.Member_Id != newMember.Member_Id && (x.Email == newMember.Email || x.Mobile == newMember.Mobile)) : (x.Email == newMember.Email || x.Mobile == newMember.Mobile));
@@ -136,14 +136,12 @@
 		{
 			if (checkDuplicate.Email == newMember.Email)
 			{
-				// toastService.ShowWarning("Email is duplicate!");
 				_radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Warning", Detail = "Email is duplicate!", Duration = 4000 });
 
 				return true;
 			}
 			else
 			{
-				// toastService.ShowWarning("Mobile is duplicate!");
 				_radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Warning", Detail = "Mobile is duplicate!", Duration = 4000 });
 				return true;
 			}
@@ -152,21 +150,5 @@
 		{
 			return false;
 		}
-	}
-	private void ValidateField(ChangeEventArgs e)
-	{
-		var validationContext = new ValidationContext(newMember);
-		var validationResults = new List<ValidationResult>();
-
-		Validator.TryValidateObject(newMember, validationContext, validationResults, true);
-
-		if (validationResults.Any())
-		{
-			foreach (var result in validationResults)
-			{
-				Console.WriteLine(result.ErrorMessage);
-			}
-		}
-		StateHasChanged();
 	}
 }

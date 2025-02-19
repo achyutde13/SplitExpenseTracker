@@ -21,7 +21,7 @@
         <RadzenRow>
             <RadzenColumn Size="3">
                 <RadzenFormField Text="Enter Expense Name" Component="ExpenseName" Style="width: 100%;">
-                    <RadzenTextBox @bind-Value="@newExpense.ExpenseName" Name="ExpenseName" @oninput="ValidateField" />
+                    <RadzenTextBox @bind-Value="@newExpense.ExpenseName" Name="ExpenseName" />
 				</RadzenFormField>
                 <RadzenRequiredValidator Component="ExpenseName" Text="Expense name is required" Popup="true" />
                 <RadzenLengthValidator Component="ExpenseName" Max="100" Text="Expense name cannot exceed 100 characters!" />
@@ -29,7 +29,7 @@
 
 			<RadzenColumn Size="3">
 				<RadzenFormField Text="Enter Amount" Component="Amount" Style="width: 100%">
-					<RadzenNumeric @bind-Value="newExpense.Amount" Name="Amount" Placeholder="Enter Amount" Step="0.01" @oninput="ValidateField" />
+					<RadzenNumeric @bind-Value="newExpense.Amount" Name="Amount" Placeholder="Enter Amount" Step="0.01" />
 				</RadzenFormField>
 				<RadzenRequiredValidator Component="Amount" Text="Amount is required" Popup="true" />
 				<RadzenNumericRangeValidator Component="Amount" Min="0.01" Text="Amount must be greater than zero" />
@@ -37,13 +37,13 @@
             
             <RadzenColumn Size="3">
                 <RadzenFormField Text="Transaction Date" Component="TransactionDate" Style="width: 100%">
-                    <RadzenDatePicker @bind-Value="newExpense.TransactionDate" ShowTime="true" HourFormat="12" DateFormat="dd/MM/yyyy h:mm tt" Name="TransactionDate" @onchange="ValidateField" />
+                    <RadzenDatePicker @bind-Value="newExpense.TransactionDate" ShowTime="true" HourFormat="12" DateFormat="dd/MM/yyyy h:mm tt" Name="TransactionDate" />
                 </RadzenFormField>
             </RadzenColumn>
             
             <RadzenColumn Size="3">
                 <RadzenFormField Text="Paid By" Component="PaidById" Style="width: 100%">
-                    <RadzenDropDown @bind-Value="newExpense.PaidById" Name="PaidById" Data="@members" TextProperty="Name" ValueProperty="Member_Id" Placeholder="Select Member" @onchange="ValidateField" />
+                    <RadzenDropDown @bind-Value="newExpense.PaidById" Name="PaidById" Data="@members" TextProperty="Name" ValueProperty="Member_Id" Placeholder="Select Member" />
                 </RadzenFormField>
                 <RadzenRequiredValidator Component="PaidById" Text="Please select a member" />
             </RadzenColumn>
@@ -107,15 +107,16 @@
         members = _ICRUD.GetAllMembers();
         ExpenseData = _ICRUD.GetAllExpenses();
     }
+
     private void OnSubmit()
     {
         _db.Expenses.Add(newExpense);
         _db.SaveChanges();
-        // toastService.ShowSuccess("Expense Added Successfully!");
         _radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Success", Detail = "Expense Added Successfully!", Duration = 4000 });
         OnReset();
 
     }
+
     private void DeleteTransaction(int Id)
     {
         var dbData = _db.Expenses.FirstOrDefault(x => x.Expense_Id == Id);
@@ -123,23 +124,15 @@
         {
             _db.Expenses.Remove(dbData);
             _db.SaveChanges();
-            ExpenseData = _ICRUD.GetAllExpenses();
-            // toastService.ShowSuccess("Expense Deleted Successfully!");
             _radzentoast.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Success", Detail = "Expense Deleted Successfully!", Duration = 4000 });
+            OnReset();
         }
     }
+
     private void OnReset()
     {
         newExpense = new();
         ExpenseData = _ICRUD.GetAllExpenses();
-        StateHasChanged();
-    }
-    private void ValidateField(ChangeEventArgs e)
-    {
-        var validationContext = new ValidationContext(newExpense);
-        var validationResults = new List<ValidationResult>();
-
-        Validator.TryValidateObject(newExpense, validationContext, validationResults, true);
         StateHasChanged();
     }
 }
